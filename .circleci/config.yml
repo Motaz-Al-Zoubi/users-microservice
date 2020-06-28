@@ -1,0 +1,119 @@
+version: 2
+references:
+  workdir: &workdir
+    /var/code
+
+  attach_workdir: &attach_workdir
+    attach_workspace:
+      at: *workdir
+
+  images: &images
+    docker:
+      - image: node:12.4.0
+      - name: mongo
+        image: mongo:latest
+    working_directory: *workdir
+
+jobs:
+  setup:
+    <<: *images
+    steps:
+      - checkout
+      # - run:
+      #     name: Copying .npmrc-example into .npmrc
+      #     command: cp /var/code/.npmrc-example /var/code/.npmrc
+      # - run:
+      #     name: Copying config-example into config
+      #     command: cp /var/code/config-example.js /var/code/config.js
+      - run:
+          name: Installing dependencies
+          command: npm install
+      - persist_to_workspace:
+          root: *workdir
+          paths:
+            - ./*
+
+  test:
+    <<: *images
+    steps:
+      - *attach_workdir
+      - run:
+          name: Running tests
+          command: npm run test
+      - store_artifacts:
+          path: /var/code/mocha
+
+  lint:
+    <<: *images
+    steps:
+      - *attach_workdir
+      - run:
+          name: Running lint
+          command: npm run lint
+
+  build:
+    docker:
+      - image: docker:17.05.0-ce-git
+    working_directory: /var/code
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 17.05.0-ce
+      - run:
+          name: Building and pushing image
+          command: |
+            IMAGE_VERSION=$(grep -o '"version":.*"' package.json | cut -d ' ' -f 2 | tr -d '"')
+            docker build --build-arg=NPM_TOKEN=$NPM_TOKEN --build-arg=NODE_ENV=production -t crowdanalyzer/$CIRCLE_PROJECT_REPONAME:$IMAGE_VERSION .
+            docker login --username=$DOCKER_USERNAME --password=$DOCKER_PASSWORD
+            docker push crowdanalyzer/$CIRCLE_PROJECT_REPONAME:$IMAGE_VERSION
+
+workflows:
+  version: 2
+  build_and_push:
+    jobs:
+      - setup:
+          context: npm
+      - test:
+          context: npm
+          requires:
+            - setup
+      - lint:
+          context: npm
+          requires:
+            - setup
+      - build:
+          context: docker
+          requires:
+            - test
+            - lint
+          filters:
+            branches:
+              only: master
+      - update_k8s_files:
+          context: continuous-deployment
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+      - deploy_dev:
+          context: continuous-deployment
+          requires:
+            - update_k8s_files
+          filters:
+            branches:
+              only: master
+      - approve_prod:
+          type: approval
+          requires:
+            - deploy_dev
+          filters:
+            branches:
+              only: master
+      - deploy_prod:
+          context: continuous-deployment
+          requires:
+            - approve_prod
+          filters:
+            branches:
+              only: master

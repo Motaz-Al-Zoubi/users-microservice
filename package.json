@@ -1,0 +1,40 @@
+{
+  "name": "users-microservice",
+  "version": "1.0.0",
+  "description": "users-microservice",
+  "engines": {
+    "node": ">=12.0.0",
+    "npm": ">=6.0.0"
+  },
+  "contributors": [
+    {
+      "name": "Motaz Al-Zoubi <Motaz-Al-Zoubi>",
+      "email": "m3taz.ite@gmail.com"
+    }
+  ],
+  "main": "./server",
+  "scripts": {
+    "start": "./server.js",
+    "docker": "docker-compose build --no-cache && docker-compose run -e NPM_TOKEN=$NPM_TOKEN --service-ports node",
+    "test": "./node_modules/.bin/mocha ./test/",
+    "lint": "./node_modules/.bin/eslint ./*.js ./test/"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "chai-subset": "^1.6.0",
+    "eslint": "^6.7.1",
+    "eslint-config-crowdanalyzer": "^1.4.1",
+    "lodash": "^4.17.11",
+    "mocha": "^6.2.2",
+    "mochawesome": "^4.1.0",
+    "objectid": "^3.2.1",
+    "supertest": "^4.0.2",
+    "swagger-ui-express": "^4.1.2"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "lodash": "^4.17.15",
+    "mongodb": "^2.2.35"
+  }
+}
